@@ -4,6 +4,8 @@ import socket
 import threading
 import sys
 import time
+# library for parsing arguments
+import argparse
 from random import randint
 
 class Client:
@@ -48,17 +50,29 @@ class Client:
 class p2p:
 	peers = ['127.0.0.1']
 
-while True:
-	try:
-		print("Trying to connect ...")
-		# between 1 to 5 seconds
-		time.sleep(randint(1,5))
-		for peer in p2p.peers:
-			try:
-				client = Client(peer)
-			except KeyboardInterrupt:
-				sys.exit(0)
-			except:
-				pass
-	except KeyboardInterrupt:
-		sys.exit(0)    
+# while True:
+parser = argparse.ArgumentParser()
+parser.add_argument("--id", type=int, help="--id us unique identifier of peer instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
+parser.add_argument("--username", help="Unique username identifing this peer within the chat")
+parser.add_argument("--chat-ipv4", help="IP address on which peer listening and receiving messages from other peers or nodes")
+parser.add_argument("--chat-port", help="Port on which peer listening and receiving messages from other peers or nodes")
+parser.add_argument("--reg-ipv4", help="IP address of egistration node, on which peer send messages HELLO and GETLIST")        
+parser.add_argument("--reg-port", help="Port of egistration node, on which peer send messages HELLO and GETLIST")
+args = parser.parse_args()
+print(args.username)
+	# try:
+	# 	print("Trying to connect ...")
+	# 	# between 1 to 5 seconds
+	# 	time.sleep(randint(1,5))
+	# 	for peer in p2p.peers:
+	# 		try:
+	# 			client = Client(peer)
+	# 		except KeyboardInterrupt:
+	# 			sys.exit(0)
+	# 		except:
+	# 			pass
+	# except KeyboardInterrupt:
+	# 	sys.exit(0)    
+
+
+    # ./pds18-peer --id <identifikátor> --username <user> --chat-ipv4 <IP> --chat-port <port> --reg-ipv4 <IP> --reg-port <port>
