@@ -51,15 +51,15 @@ class p2p:
 	peers = ['127.0.0.1']
 
 # while True:
-parser = argparse.ArgumentParser()
-parser.add_argument("--id", type=int, help="--id us unique identifier of peer instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
-parser.add_argument("--username", help="Unique username identifing this peer within the chat")
-parser.add_argument("--chat-ipv4", help="IP address on which peer listening and receiving messages from other peers or nodes")
-parser.add_argument("--chat-port", help="Port on which peer listening and receiving messages from other peers or nodes")
-parser.add_argument("--reg-ipv4", help="IP address of egistration node, on which peer send messages HELLO and GETLIST")        
-parser.add_argument("--reg-port", help="Port of egistration node, on which peer send messages HELLO and GETLIST")
+parser = argparse.ArgumentParser(description="Hybrid p2p chat application PEER module")
+parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of peer instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
+parser.add_argument("--username", required=True, help="Unique username identifing this peer within the chat")
+parser.add_argument("--chat-ipv4", required=True, help="IP address on which peer listening and receiving messages from other peers or nodes")
+parser.add_argument("--chat-port", required=True, help="Port on which peer listening and receiving messages from other peers or nodes")
+parser.add_argument("--reg-ipv4", required=True, help="IP address of egistration node, on which peer send messages HELLO and GETLIST")        
+parser.add_argument("--reg-port", required=True, help="Port of egistration node, on which peer send messages HELLO and GETLIST")
 args = parser.parse_args()
-print(args.username)
+print(args)
 	# try:
 	# 	print("Trying to connect ...")
 	# 	# between 1 to 5 seconds

@@ -72,10 +72,10 @@ class p2p:
 	peers = ['127.0.0.1']
 
 # while True:
-parser = argparse.ArgumentParser()
-parser.add_argument("--id", type=int, help="--id us unique identifier of node instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
-parser.add_argument("--chat-ipv4", help="IP address on which node listening and receiving messages from other peers or nodes")
-parser.add_argument("--chat-port", help="Port on which node listening and receiving messages from other peers or nodes")
+parser = argparse.ArgumentParser(description="Hybrid p2p chat application NODE module")
+parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of node instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
+parser.add_argument("--chat-ipv4", required=True, help="IP address on which node listening and receiving messages from other peers or nodes")
+parser.add_argument("--chat-port", required=True, help="Port on which node listening and receiving messages from other peers or nodes")
 args = parser.parse_args()
 print(args.username)
 	# try:
