@@ -70,20 +70,24 @@ class Server:
 			print(self.peers)
 			print("============= DB ==============")
 			print(self.db)
-
-			bdeccoded = yabencode.decode(data)
-			for key in bdeccoded:
-				if key == "type":
-					if bdeccoded[key].decode("utf-8") == "hello":
-						self.checkPeer(bdeccoded)
-						break
+			print("=================================================")
+			if data == b'GETLIST':
+				print(str(a[0]) + ':' + str(a[1]))
+				print("Is asking List of peers")
+			else:
+				bdeccoded = yabencode.decode(data)
+				for key in bdeccoded:
+					if key == "type":
+						if bdeccoded[key].decode("utf-8") == "hello":
+							self.checkPeer(bdeccoded)
+							break
 			# send to every client
 			for connection in self.connections:
-				# connection.send(bytes(data))
-				if data == b'GETLIST':
-					connection.send(self.peers.encode)
-				else:
-					connection.send(data)
+				connection.send(bytes(data))
+				# if data == b'GETLIST':
+				# 	connection.send(self.peers.encode)
+				# else:
+				# 	connection.send(data)
 			# way to quit loop
 			if not data:
 				print(str(a[0]) + ':' + str(a[1]), "disconnected")

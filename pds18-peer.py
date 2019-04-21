@@ -21,15 +21,18 @@ import argparse
 from random import randint
 # working with json
 import json
-
+import os
 # @TODO bencoding not allow
 import yabencode
+
+import select
 
 class Client:
 		# method which is able to send message to the server
 		def sendMsg(self, sock):
 			# running in the background
 			helloTime = time.time()
+			listTime = time.time()
 			while True:
 				# threading.Timer(10.0, self.sendMsg(sock)).start()
 				if (time.time() - helloTime) > 10:
@@ -41,12 +44,12 @@ class Client:
 						"ipv4": str(CHAT_IPV4),
 						"port": int(CHAT_PORT)
 					}	
-					print(type(data))
 					bencoded = yabencode.encode(data)
-					print("after bencoding")
-					print(bencoded)
 					sock.send(bencoded)
 					helloTime = time.time()
+				elif (time.time() - listTime) > 30:
+					listTime = time.time()
+					sock.send(bytes("GETLIST", 'utf-8'))
 				# data = self.sendHello()
 				# print("sendMsg")
 				# if data:
@@ -73,18 +76,18 @@ class Client:
 			while True:
 				data = sock.recv(1024)
 				if not data:
-					print("[LOG] If 1")
+					# print("[LOG] If 1")
 					break
 				#if first byte of the data then we receive list of peers
 				if data[0:1] == b'\x11':
-					print("[LOG] If 2")
+					# print("[LOG] If 2")
 					# update th peers list minus first byte
 					self.updatePeers(data[1:])
-					print("got peers")
-				else:
-					print("[LOG] If 3")
-					print(str(data, 'utf-8'))
-					print("======")
+					# print("got peers")
+				# else:
+					# print("[LOG] If 3")
+					# print(str(data, 'utf-8'))
+					# print("======")
 
 		def updatePeers(self, peerData):
 			# go from the start of the list to the second last item
