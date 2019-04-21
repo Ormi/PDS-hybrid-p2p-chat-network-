@@ -21,8 +21,9 @@ import argparse
 from random import randint
 # working with json
 import json
-#
-import select
+
+# @TODO bencoding not allow
+import yabencode
 
 class Client:
 		# method which is able to send message to the server
@@ -35,12 +36,16 @@ class Client:
 					myID = str(id)
 					data = {
 						"type": "hello",
-						"txid": ID,
-						"username": USERNAME,
-						"ipv4": CHAT_IPV4,
-						"port": CHAT_PORT
+						"txid": int(ID),
+						"username": str(USERNAME),
+						"ipv4": str(CHAT_IPV4),
+						"port": int(CHAT_PORT)
 					}	
-					sock.send(bytes(json.dumps(data), 'utf-8'))
+					print(type(data))
+					bencoded = yabencode.encode(data)
+					print("after bencoding")
+					print(bencoded)
+					sock.send(bencoded)
 					helloTime = time.time()
 				# data = self.sendHello()
 				# print("sendMsg")

@@ -19,11 +19,15 @@ import time
 import argparse
 # Creating random stream of numbers
 from random import randint
+import json
 
+# @TODO bencoding not allow
+import yabencode
 
 class Server:
 	connections = []
 	peers = []
+	db = []
 	#create constructor
 	def __init__(self):
 		# Accessing socket library in socket method
@@ -41,6 +45,7 @@ class Server:
 			# c - connection which socket return
 			# a - connectio naddress which socket return
 			c, a = sock.accept()
+			print("log1")
 			print(a)
 			# on every connection make unique thread so we can server multiply users
 			cThread = threading.Thread(target=self.handler, args=(c,a))
@@ -59,7 +64,19 @@ class Server:
 		while True:
 			# we receiving data by connection and maximum data is
 			data = c.recv(1024)
-			print(data)
+			print("============= CONNECTIONS ==============")
+			print(self.connections)
+			print("============= PEERS ==============")
+			print(self.peers)
+			print("============= DB ==============")
+			print(self.db)
+
+			bdeccoded = yabencode.decode(data)
+			for key in bdeccoded:
+				if key == "type":
+					if bdeccoded[key].decode("utf-8") == "hello":
+						self.checkPeer(bdeccoded)
+						break
 			# send to every client
 			for connection in self.connections:
 				# connection.send(bytes(data))
@@ -80,6 +97,37 @@ class Server:
 			# if data:
 			# 	if data == b'GETLIST':
 			# 		self.sendListToPeer()
+
+	def checkPeer(self, data):
+		timestamp = time.time()
+		dbCopy = self.db
+		data.update({"time": timestamp})
+		peerID = 0
+		found = False
+		for key in data:
+			if key == "txid":
+				peerID = data[key]
+				break
+		# First entry to database
+		if not dbCopy:
+			found = True
+			dbCopy.append(data)
+		# Check if entry is not already in database
+		# if so just rewrite timestamp
+		# if not add to db
+		else:
+			for peer in dbCopy:
+				line = peer
+				for entry in line:
+					if entry == 'txid':
+						if line[entry] == peerID:
+						# self.db.append(data)
+							found = True
+							break
+		if found == False:
+			dbCopy.append(data)							
+		self.db = dbCopy
+
 
 	def sendPeers(self):
 		p = ""
