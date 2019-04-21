@@ -46,3 +46,7 @@ print(args)
 # --node --command connect --reg-ipv4 <IP> --reg-port <port>, který se pokusí navázat sousedství s novým registračním uzlem
 # --node --command disconnect, který zruší sousedství se všemi uzly (stáhne z jejich DB své autoritativní záznamy) a odpojí node od sítě
 # --node --command sync, která vynutí synchronizaci DB s uzly, se kterými node aktuálně sousedí
+
+
+
+# python3 pds18-node.py --id 1 --reg-ipv4 127.0.0.1 --reg-port 3000

@@ -141,3 +141,5 @@ while True:
 
 
     # ./pds18-peer --id <identifikátor> --username <user> --chat-ipv4 <IP> --chat-port <port> --reg-ipv4 <IP> --reg-port <port>
+
+# python3 pds18-peer.py --id 10 --username user1 --chat-ipv4 127.0.0.10 --chat-port 3010 --reg-ipv4 127.0.0.1 --reg-port 3000

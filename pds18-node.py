@@ -32,7 +32,7 @@ class Server:
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		# ip , port
-		sock.bind((CHAT_IPV4, int(CHAT_PORT)))
+		sock.bind((REG_IPV4, int(REG_PORT)))
 		# how many connections are allowed to listen
 		sock.listen(1)
 		print("Server running ...")
@@ -103,12 +103,12 @@ class p2p:
 while True:
 	parser = argparse.ArgumentParser(description="Hybrid p2p chat application NODE module")
 	parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of node instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
-	parser.add_argument("--chat-ipv4", required=True, help="IP address on which node listening and receiving messages from other peers or nodes")
-	parser.add_argument("--chat-port", required=True, help="Port on which node listening and receiving messages from other peers or nodes")
+	parser.add_argument("--reg-ipv4", required=True, help="IP address on which node listening and receiving messages from other peers or nodes")
+	parser.add_argument("--reg-port", required=True, help="Port on which node listening and receiving messages from other peers or nodes")
 	args = parser.parse_args()
 	ID = str(args.id)
-	CHAT_IPV4 = str(args.chat_ipv4)
-	CHAT_PORT = str(args.chat_port)
+	REG_IPV4 = str(args.reg_ipv4)
+	REG_PORT = str(args.reg_port)
 	try:
 		print("Trying to connect ...")
 		# between 1 to 5 seconds
