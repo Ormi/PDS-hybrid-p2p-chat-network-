@@ -60,17 +60,48 @@ class Client:
 
 
 		def __init__(self, address):
+			# Establish connection with server
 			print("Client running ...")
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			#connect to socket
-			sock.connect((REG_IPV4, int(REG_PORT)))
-# HELLO := {"type":"hello", "txid":<ushort>, "username":"<string>", "ipv4":"<dotted_decimal_IP>", "port": <ushort>}                       
-
+			sock.connect((REG_IPV4, int(REG_PORT)))                  
 			# we can receive and send in same time so threads
 			iThread = threading.Thread(target=self.sendMsg, args=(sock,))
 			iThread.daemon = True
 			iThread.start()
+		
+			iThread2 = threading.Thread(target=self.listener, args=())
+			iThread2.daemon = True
+			iThread2.start()
+		
+			# # Wait for other client trying to connect with me
+			# sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			# sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			# # ip , port
+			# sock.bind((CHAT_IPV4, int(CHAT_PORT)))
+			# # how many connections are allowed to listen
+			# sock.listen(1)
+			# print("Cliest is listenning ...")					
+
+			# while True:
+			# 	# c - connection which socket return
+			# 	# a - connectio naddress which socket return
+			# 	c, a = sock.accept()
+			# 	print("log1")
+			# 	# self.checkPeerHelloInterval()
+			# 	print(a)
+			# 	# on every connection make unique thread so we can server multiply users
+			# 	cThread = threading.Thread(target=self.handler, args=(c,a))
+			# 	# we are able to close problem even threads are ongoing
+			# 	cThread.daemon = True
+			# 	cThread.start()
+			# 	# self.connections.append(c)
+			# 	# add peer to peers list when someone connects
+			# 	# self.peers.append(a[1])
+			# 	# print who was connected
+			# 	print(str(a[0]) + ':' + str(a[1]), "connected")		
+			# 	# self.sendPeers()
 
 			#sending messages
 			while True:
@@ -79,19 +110,25 @@ class Client:
 					# print("[LOG] If 1")
 					break
 				#if first byte of the data then we receive list of peers
-				if data[0:1] == b'\x11':
-					# print("[LOG] If 2")
-					# update th peers list minus first byte
-					self.updatePeers(data[1:])
-					# print("got peers")
-				# else:
+				# if data[0:1] == b'\x11':
+				# 	# print("[LOG] If 2")
+				# 	# update th peers list minus first byte
+				# 	self.updatePeers(data[1:])
+				# 	# print("got peers")
+				else:
 					# print("[LOG] If 3")
-					# print(str(data, 'utf-8'))
+					print(str(data, 'utf-8'))
 					# print("======")
 
-		def updatePeers(self, peerData):
-			# go from the start of the list to the second last item
-			p2p.peers = str(peerData, "utf-8").split(",")[:-1]
+		# def handler(self, c, a):
+		# 	while True:
+		# 		# we receiving data by connection and maximum data is
+		# 		data = c.recv(1024)
+		# 		print(data)
+
+		# def updatePeers(self, peerData):
+		# 	# go from the start of the list to the second last item
+		# 	p2p.peers = str(peerData, "utf-8").split(",")[:-1]
 
 		# def getPeersList(self, peerData):
 			# print(peerData)
@@ -113,10 +150,48 @@ class Client:
 				"type": "getlist",
 				"txid": "10",
 			}
-			self.sendMsg(data)				
+			self.sendMsg(data)		
 
-class p2p:
-	peers = ['127.0.0.1']
+		def listener(self):
+			# Wait for other client trying to connect with me
+			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			# ip , port
+			sock.bind((CHAT_IPV4, int(CHAT_PORT)))
+			# how many connections are allowed to listen
+			sock.listen(1)
+			print("Cliest is listenning ...")					
+
+			while True:
+				# c - connection which socket return
+				# a - connectio naddress which socket return
+				c, a = sock.accept()
+				print("log1")
+				# self.checkPeerHelloInterval()
+				print(a)
+				# on every connection make unique thread so we can server multiply users
+				cThread = threading.Thread(target=self.handler, args=(c,a))
+				# we are able to close problem even threads are ongoing
+				cThread.daemon = True
+				cThread.start()
+				# self.connections.append(c)
+				# add peer to peers list when someone connects
+				# self.peers.append(a[1])
+				# print who was connected
+				print(str(a[0]) + ':' + str(a[1]), "connected")		
+				# self.sendPeers()
+
+		def handler(self, c, a):
+			while True:
+				# we receiving data by connection and maximum data is
+				data = c.recv(1024)
+				print(data)
+				if not data:
+					c.close
+					break				
+
+# class p2p:
+# 	peers = ['127.0.0.1']
 
 while True:
 	parser = argparse.ArgumentParser(description="Hybrid p2p chat application PEER module")
@@ -136,14 +211,15 @@ while True:
 	try:
 		print("Trying to connect ...")
 		# between 1 to 5 seconds
-		time.sleep(randint(1,5))
-		for peer in p2p.peers:
-			try:
-				client = Client(peer)
-			except KeyboardInterrupt:
-				sys.exit(0)
-			except:
-				pass
+		# time.sleep(randint(1,5))
+		# for peer in p2p.peers:
+		try:
+			client = Client(REG_IPV4)
+			# clientPeer = clientPeer(peer)
+		except KeyboardInterrupt:
+			sys.exit(0)
+		except:
+			pass				
 	except KeyboardInterrupt:
 		sys.exit(0)    
 

@@ -45,7 +45,7 @@ class Server:
 			# c - connection which socket return
 			# a - connectio naddress which socket return
 			c, a = sock.accept()
-			print("log1")
+			# self.checkPeerHelloInterval()
 			print(a)
 			# on every connection make unique thread so we can server multiply users
 			cThread = threading.Thread(target=self.handler, args=(c,a))
@@ -54,7 +54,7 @@ class Server:
 			cThread.start()
 			self.connections.append(c)
 			# add peer to peers list when someone connects
-			self.peers.append(a[0])
+			self.peers.append(a[1])
 			# print who was connected
 			print(str(a[0]) + ':' + str(a[1]), "connected")		
 			self.sendPeers()
@@ -74,38 +74,57 @@ class Server:
 			if data == b'GETLIST':
 				print(str(a[0]) + ':' + str(a[1]))
 				print("Is asking List of peers")
-			else:
-				bdeccoded = yabencode.decode(data)
-				for key in bdeccoded:
-					if key == "type":
-						if bdeccoded[key].decode("utf-8") == "hello":
-							self.checkPeer(bdeccoded)
-							break
+				# Find which peer sends it at send back database of peers you have
+				for peer in self.peers:
+					print(peer)
+					print(str(a[1]))
+					if peer == a[1]:
+						print(self.peers.index(peer)) 
+						index = self.peers.index(peer)
+						connection = self.connections[index]
+						dbToJSON = json.dumps(self.db)						
+						connection.send(bytes(dbToJSON, 'utf-8'))
 			# send to every client
-			for connection in self.connections:
-				connection.send(bytes(data))
+			# for connection in self.connections:
+			# 	connection.send(bytes(data))
 				# if data == b'GETLIST':
 				# 	connection.send(self.peers.encode)
 				# else:
 				# 	connection.send(data)
 			# way to quit loop
-			if not data:
+			elif not data:
 				print(str(a[0]) + ':' + str(a[1]), "disconnected")
 				self.connections.remove(c)
 				# remove peer from peers list when someone disconnects
-				self.peers.remove(a[0])
+				self.peers.remove(a[1])
 				c.close
 				# when someone disconnect update the list of connected peers
 				self.sendPeers()
 				break
+			else:
+				bdeccoded = yabencode.decode(data)
+				for key in bdeccoded:
+					if key == "type":
+						if bdeccoded[key].decode("utf-8") == "hello":
+							self.checkPeer(bdeccoded, str(a[1]))
+							break		
 			# if data:
 			# 	if data == b'GETLIST':
 			# 		self.sendListToPeer()
 
-	def checkPeer(self, data):
+	def checkPeer(self, data, port):
+		for line in data:
+			if line == 'ipv4':
+				print(type(data[line]))
+				data[line] = data[line].decode("utf-8")
+			if line == 'username':
+				data[line] = data[line].decode("utf-8")
+			if line == 'type':
+				data[line] = data[line].decode("utf-8")
 		timestamp = time.time()
 		dbCopy = self.db
 		data.update({"time": timestamp})
+		data.update({"portID": port})
 		peerID = 0
 		found = False
 		for key in data:
@@ -125,6 +144,8 @@ class Server:
 				for entry in line:
 					if entry == 'txid':
 						if line[entry] == peerID:
+							dbCopy.remove(line)
+							dbCopy.append(data)
 						# self.db.append(data)
 							found = True
 							break
@@ -132,6 +153,18 @@ class Server:
 			dbCopy.append(data)							
 		self.db = dbCopy
 
+	def checkPeerHelloInterval(self):
+		print("checkPeerHelloInterval")
+		dbCopy = self.db
+		actualTimestamp = time.time()
+		for peer in dbCopy:
+			line = peer
+			for entry in line:
+				if entry == 'timestamp':
+					if actualTimestamp - line[entry] > 30:
+						dbCopy.remove(line)
+						break		
+		self.db = dbCopy						
 
 	def sendPeers(self):
 		p = ""
