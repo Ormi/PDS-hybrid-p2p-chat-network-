@@ -4,8 +4,24 @@ import argparse
 import time
 import json
 import yabencode
+import threading
 
 class Client:
+
+    def RPCHandler(self):
+        # Create a UDP socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Bind the socket to the port
+        server_address = ('localhost', 9999)
+        print('Client listening for RPC {} port {}'.format(*server_address))
+        sock.bind(server_address)        
+        while True:
+            # we receiving data by connection and maximum data is
+            data, address = sock.recvfrom(4096)
+            print(data)
+            if data == b'SEND':
+                print("call send")
+                self.sendMsg()            
 
     def sendMsg(self):
         # Create a UDP socket
@@ -38,11 +54,17 @@ class Client:
             sock.close()
 
     def __init__(self):
+
+        # FOR RPC
+        cThread = threading.Thread(target=self.RPCHandler, args=())
+        # we are able to close problem even threads are ongoing
+        cThread.daemon = True
+        cThread.start()
+
         # Create a UDP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
         # Bind the socket to the port
-        server_address = ('localhost', int(9999))
+        server_address = (CHAT_IPV4, int(CHAT_PORT))
         print('starting up on {} port {}'.format(*server_address))
         sock.bind(server_address)
 
@@ -50,18 +72,12 @@ class Client:
         firstsHello = False
         self.sendMsg()
 
-        while True:
-            if (firstsHello == False):
-                self.sendMsg()
-                firstsHello == True            
+        while True:       
             print('\nwaiting to receive message')
             data, address = sock.recvfrom(4096)
             print('received {} bytes from {}'.format(
                 len(data), address))
             print(data)
-            if data == b'SEND':
-                print("call send")
-                self.sendMsg()
             # if data:
             #     sent = sock.sendto(data, address)
             #     print('sent {} bytes back to {}'.format(
