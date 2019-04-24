@@ -1,8 +1,15 @@
 import socket
 import sys
 import argparse
+import yabencode
 
 class Server:
+
+    def parseMessage(self, message):
+        for line in message:
+            if line == 'type':
+                message[line] = message[line].decode("utf-8")
+        return message
 
     def __init__(self):
         # Create a UDP socket
@@ -19,8 +26,18 @@ class Server:
 
             print('received {} bytes from {}'.format(
                 len(data), address))
+            print(address)
+            data = data.decode("utf-8") 
             print(data)
-
+            dataDecoded = yabencode.decode(data)
+            message = self.parseMessage(dataDecoded)
+            print(message)
+            for line in message:
+                if line == 'type':
+                    if message[line] == 'getlist':
+                        bencoded = yabencode.encode("POSIELAM TI LIST")
+                        sent = sock.sendto(bencoded, address)
+                        print('sent {} bytes back to {}'.format(sent, address))
             # if data:
             #     sent = sock.sendto(data, address)
             #     print('sent {} bytes back to {}'.format(
