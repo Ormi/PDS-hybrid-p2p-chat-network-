@@ -1,47 +1,223 @@
 import socket
 import sys
 import argparse
-import yabencode
+import time
+from bencoder import bencode
+from bencoder import bdecode
+import os
+import json
+import threading
+
+TXID = 1
+TXID_LOCK = threading.Lock()
+def next_id():
+	global TXID
+	with TXID_LOCK:
+		result = TXID
+		TXID += 1
+	return result
 
 class Server:
+	db = []
+	
+	def checkPeer(self, data):
+		print("[INFO] checkPeer")
+		timestamp = time.time()
+		dbCopy = self.db
+		data.update({"timestamp": timestamp})
+		# data.update({"portID": port})
+		peerID = 0
+		found = False
+		for key in data:
+			if key == "username":
+				peerID = data[key]
+				break
+		# First entry to database
+		if not dbCopy:
+			found = True
+			dbCopy.append(data)
+		# Check if entry is not already in database
+		# if so just rewrite timestamp
+		# if not add to db
+		else:
+			for peer in dbCopy:
+				for entry in peer:
+					line = peer
+					if entry == 'username':
+						if str(line[entry]) == peerID:
+							dbCopy.remove(line)
+							dbCopy.append(data)
+						# self.db.append(data)
+							found = True
+							break
+		if found == False:
+			dbCopy.append(data)							
+		self.db = dbCopy   
+		return 
 
-    def parseMessage(self, message):
-        for line in message:
-            if line == 'type':
-                message[line] = message[line].decode("utf-8")
-        return message
+	def checkPeerHelloInterval(self):
+		print("checkPeerHelloInterval")
+		dbCopy = self.db
+		actualTimestamp = time.time()
+		for peer in dbCopy:
+			line = peer
+			for entry in line:
+				if entry == 'timestamp':
+					if actualTimestamp - line[entry] > 30:
+						dbCopy.remove(line)
+						break		
+		self.db = dbCopy
+		return						
+		
 
-    def __init__(self):
-        # Create a UDP socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	def parseMessage(self, data):
+		for line in data:
+			if line == 'ipv4':
+				data[line] = data[line].decode("utf-8")
+			if line == 'username':
+				data[line] = data[line].decode("utf-8")
+			if line == 'type':
+				data[line] = data[line].decode("utf-8")
+		return data
 
-        # Bind the socket to the port
-        server_address = (REG_IPV4, int(REG_PORT))
-        print('starting up on {} port {}'.format(*server_address))
-        sock.bind(server_address)
+	def __init__(self):
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        while True:
-            print('\nwaiting to receive message')
-            data, address = sock.recvfrom(4096)
+		# Bind the socket to the port
+		server_address = (REG_IPV4, int(REG_PORT))
+		print('starting up on {} port {}'.format(*server_address))
+		sock.bind(server_address)
 
-            print('received {} bytes from {}'.format(
-                len(data), address))
-            print(address)
-            data = data.decode("utf-8") 
-            print(data)
-            dataDecoded = yabencode.decode(data)
-            message = self.parseMessage(dataDecoded)
-            print(message)
-            for line in message:
-                if line == 'type':
-                    if message[line] == 'getlist':
-                        bencoded = yabencode.encode("POSIELAM TI LIST")
-                        sent = sock.sendto(bencoded, address)
-                        print('sent {} bytes back to {}'.format(sent, address))
-            # if data:
-            #     sent = sock.sendto(data, address)
-            #     print('sent {} bytes back to {}'.format(
-            #         sent, address))
+		while True:
+			print('\nwaiting to receive message')
+			data, address = sock.recvfrom(4096)
+
+			print('received {} bytes from {}'.format(
+				len(data), address))
+			data = data.decode("utf-8") 
+			dataDecoded = bdecode(data)
+			message = self.parseMessage(dataDecoded)
+			print(message)
+			for line in message:
+				self.checkPeerHelloInterval()
+				if line == 'type':
+					if message[line] == 'getlist':
+						print("[SERVER] I got GETLIST")
+						print(time.time())
+						data = self.preparePeersData()
+						print(data)
+						print("1")
+						print(type(data))
+						bencoded = bencode(data)
+						print("2")
+						print(bencoded)
+						sent = sock.sendto(bencoded, address)
+					elif message[line] == 'hello':
+						print(self.db)
+						print("[SERVER] I got HELO")
+						print(time.time())
+						self.checkPeer(message)
+					elif message[line] == 'ack':
+						print("ACK")
+			# if data:
+			#     sent = sock.sendto(data, address)
+			#     print('sent {} bytes back to {}'.format(
+			#         sent, address))
+
+	def preparePeersData(self):
+		print("[INFO] preparePeersData")
+		next_id()
+		dbCopy = self.db
+		counter = 0
+		peerRecords = []
+		for peer in dbCopy:
+			for entry in peer:
+				line = peer
+				if entry == 'username':
+					username = line[entry]
+				if entry == 'ipv4':
+					ip = line[entry]
+				if entry == 'port':
+					port = line[entry]
+			record = {str(counter): {
+				"username": str(username),
+				"ipv4": str(ip),
+				"port": int(port)
+			}}
+			peerRecords.append(record)
+			counter += 1
+		data = {
+			"type": "list",
+			"txid": int(TXID),
+			"peers": {}
+		}
+		for record in peerRecords:
+			data["peers"].update(record)
+		return data	
+
+
+def checkwhoIAm(action, data):
+	print("[INFO] checkwhoIam")
+	weGotUserName = False
+	weGotId = False
+	allLines = []
+	lineToRemove = ""
+	if os.path.exists("network.dat"):
+		with open("network.dat","r") as f:
+			for line in f:
+				allLines.append(line)
+				jsondata = json.loads(line)
+				for item in jsondata:
+					# if item == "username":
+					# 	if jsondata[item] == USERNAME:
+					# 		weGotUserName = True
+					if item == "id":
+						if jsondata[item] == int(ID):
+							lineToRemove = line
+							weGotId = True
+		f.close()
+		if(action == "add"):
+			with open("network.dat","a") as f:
+				if (weGotId == False):
+					f.write("\n")
+					f.write(json.dumps(data))
+			f.close()
+		elif(action == "remove"):
+			allLines.remove(lineToRemove)
+			print(allLines)
+			if len(allLines) != 0:
+				with open("network.dat","w") as f:
+					for line in allLines:
+						# line = line[:-2]
+						# if firstLine == True:
+						# 	firstLine = False
+						# else:
+						# 	f.write("\n")						
+						f.write(line)
+				f.close()	
+			else:
+				os.remove("network.dat")
+	else:
+		try:
+			os.remove("network.dat")
+		except:
+			pass
+		with open("network.dat","w") as f:
+			f.write(json.dumps(data))
+			f.close()	
+
+
+def findRPCPort():
+	if(len(str(ID)) == 1):
+		RPCid = ID + "999"
+	if(len(str(ID)) == 2):
+		RPCid = ID + "999"
+	if(len(str(ID)) == 3):
+		RPCid = ID + "99"
+	if(len(str(ID)) == 4):
+		RPCid = ID + "9"                                           
+	return RPCid
 
 while True:
 	parser = argparse.ArgumentParser(description="Hybrid p2p chat application NODE module")
@@ -52,19 +228,22 @@ while True:
 	ID = str(args.id)
 	REG_IPV4 = str(args.reg_ipv4)
 	REG_PORT = str(args.reg_port)
+	whoIAm = {
+		"type": "node",	
+		"id": int(ID),
+		"ip": str(REG_IPV4),
+		"port": int(findRPCPort())
+	}	
+	checkwhoIAm("add", whoIAm)	
 	try:
 		print("Trying to connect ...")
-		# between 1 to 5 seconds
-		# time.sleep(randint(1,5))
-		# for peer in p2p.peers:
-			# Problem of every client to become server
-			# 1 to 20 chance that client will become a server
-			# if randint(1, 20) == 1: 
 		try:
 			server = Server()
 		except KeyboardInterrupt:
+			checkwhoIAm("remove", whoIAm)
 			sys.exit(0)
 		except Exception as e:
 			print(e)
 	except KeyboardInterrupt:
+		checkwhoIAm("remove", whoIAm)
 		sys.exit(0)                        

@@ -3,9 +3,10 @@ import sys
 import argparse
 import time
 import json
-import yabencode
 import threading
 import os
+from bencoder import bencode
+from bencoder import bdecode
 
 TXID = 1
 TXID_LOCK = threading.Lock()
@@ -63,11 +64,9 @@ class Client:
 				sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 				server_address = (REG_IPV4, int(REG_PORT))      
-
 				firstHello = False
 				data = self.prepareData()
-				bencoded = yabencode.encode(data)
-				print(bencoded)
+				bencoded = bencode(data)
 				try:
 
 					# Send data
@@ -88,7 +87,7 @@ class Client:
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 		server_address = (REG_IPV4, int(REG_PORT))
-
+		next_id()
 		data = {
 			"type":"message",
 			"txid": TXID,
@@ -98,7 +97,7 @@ class Client:
 		}
 			   
 		while True:
-			bencoded = yabencode.encode(data)
+			bencoded = bencode(data)
 			try:
 				# Send data
 				print('sending {!r}'.format(bencoded))
@@ -113,6 +112,29 @@ class Client:
 				print('closing socket')
 				sock.close()
 
+	def sendACK(self):
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+		server_address = (REG_IPV4, int(REG_PORT))
+		next_id()
+		data = {
+			"type":"ack", 
+			"txid": TXID
+		}
+			   
+		while True:
+			bencoded = bencode(data)
+			try:
+				# Send data
+				print('sending {!r}'.format(bencoded))
+				sent = sock.sendto(bencoded, server_address)
+			finally:
+				print('closing socket')
+				sock.close()
+			return
+
+
 	def sendGetList(self):
 		# Create a UDP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -125,7 +147,7 @@ class Client:
 		}
 			   
 		while True:
-			bencoded = yabencode.encode(data)
+			bencoded = bencode(data)
 			try:
 				# Send data
 				print('sending {!r}'.format(bencoded))
@@ -134,8 +156,9 @@ class Client:
 				# Receive response
 				print('waiting to receive')
 				data, server = sock.recvfrom(4096)
-				print('received {!r}'.format(data))
-
+				decodedData = bdecode(data)
+				print('received {!r}'.format(decodedData))
+				self.sendACK()
 			finally:
 				print('closing socket')
 				sock.close()
@@ -181,9 +204,6 @@ class Client:
 			data, address = sock.recvfrom(4096)
 			print('received {} bytes from {}'.format(
 				len(data), address))
-			print(data)
-			print("aaaa")
-
 			# if data == :
 			#     sent = sock.sendto(data, address)
 			#     print('sent {} bytes back to {}'.format(
@@ -199,44 +219,42 @@ def checkwhoIAm(action, data):
 		with open("network.dat","r") as f:
 			for line in f:
 				allLines.append(line)
-				print(line)
 				jsondata = json.loads(line)
 				for item in jsondata:
-					if item == "username":
-						if jsondata[item] == USERNAME:
-							weGotUserName = True
-							lineToRemove = line
+					# if item == "username":
+					# 	if jsondata[item] == USERNAME:
+					# 		weGotUserName = True
 					if item == "id":
-						print(jsondata[item])
-						print(ID)
 						if jsondata[item] == int(ID):
+							lineToRemove = line
 							weGotId = True
 		f.close()
 		if(action == "add"):
 			with open("network.dat","a") as f:
-				if (weGotUserName == False and weGotId == False):
-					f.write(json.dumps(data))
+				if (weGotId == False):
 					f.write("\n")
+					f.write(json.dumps(data))
 			f.close()
 		elif(action == "remove"):
-			with open("network.dat","w") as f:
-				counter = 1
-				print(len(allLines))
-				for line in allLines:
-					if line != lineToRemove:
+			allLines.remove(lineToRemove)
+			print(allLines)
+			if len(allLines) != 0:
+				with open("network.dat","w") as f:
+					for line in allLines:
+						# line = line[:-2]
+						# if firstLine == True:
+						# 	firstLine = False
+						# else:
+						# 	f.write("\n")						
 						f.write(line)
-						print(counter)
-						if (counter != len(allLines)-1):
-							f.write("\n")
-							counter += 1
-			f.close()	
+				f.close()	
+			else:
+				os.remove("network.dat")
 	else:
 		with open("network.dat","w") as f:
 			f.write(json.dumps(data))
-			f.write("\n")
-			f.close()			
-
-
+			f.close()	
+			
 
 def findRPCPort():
 	if(len(str(ID)) == 1):
