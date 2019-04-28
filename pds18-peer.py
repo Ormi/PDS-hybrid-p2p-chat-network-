@@ -22,208 +22,362 @@ from random import randint
 # working with json
 import json
 import os
-# @TODO bencoding not allow
-import yabencode
+# library for bencoding
+from bencoder import bencode
+from bencoder import bdecode
 
-import select
+TXID = 1
+TXID_LOCK = threading.Lock()
+def next_id():
+	global TXID
+	with TXID_LOCK:
+		result = TXID
+		TXID += 1
+	return result
 
 class Client:
-		# method which is able to send message to the server
-		def sendMsg(self, sock):
-			# running in the background
-			helloTime = time.time()
-			listTime = time.time()
-			while True:
-				# threading.Timer(10.0, self.sendMsg(sock)).start()
-				if (time.time() - helloTime) > 10:
-					myID = str(id)
-					data = {
-						"type": "hello",
-						"txid": int(ID),
-						"username": str(USERNAME),
-						"ipv4": str(CHAT_IPV4),
-						"port": int(CHAT_PORT)
-					}	
-					bencoded = yabencode.encode(data)
-					sock.send(bencoded)
-					helloTime = time.time()
-				elif (time.time() - listTime) > 30:
-					listTime = time.time()
-					sock.send(bytes("GETLIST", 'utf-8'))
-				# data = self.sendHello()
-				# print("sendMsg")
-				# if data:
-				# 	sock.send(bytes("hello", 'utf-8'))
-				# if (input("")):
-				# 	sock.send(bytes(input(""), 'utf-8'))
-				# sock.send(bytes("a", 'utf-8'))
-
-
-		def __init__(self, address):
-			# Establish connection with server
-			print("Client running ...")
-			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			#connect to socket
-			sock.connect((REG_IPV4, int(REG_PORT)))                  
-			# we can receive and send in same time so threads
-			iThread = threading.Thread(target=self.sendMsg, args=(sock,))
-			iThread.daemon = True
-			iThread.start()
 		
-			iThread2 = threading.Thread(target=self.listener, args=())
-			iThread2.daemon = True
-			iThread2.start()
+	def RPCHandler(self):
+		RPCid = self.findRPCPort()
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		# Bind the socket to the port
+		server_address = (CHAT_IPV4, int(RPCid))
+		print('Client listening for RPC {} port {}'.format(*server_address))
+		sock.bind(server_address)        
+		while True:
+			print("listening")
+			# we receiving data by connection and maximum data is
+			data, address = sock.recvfrom(4096)
+			print(data)
+			if data == b'MESSAGE':
+				print("call message")
+				print(address)
+				try:
+					# Send data
+					data = b'ACK'
+					print('sending {!r}'.format(data))
+					sent = sock.sendto(data, address)
+					# Receive response
+					print('waiting to receive')
+					data, server = sock.recvfrom(4096)
+					print('received {!r}'.format(data))
+				finally:
+					print(data)
+					self.sendMessage(data)
+					# print('closing socket')
+					# self.sendMessage("a")  
+			elif data == b'GETLIST':
+				print("call getlist")
+				result = self.sendGetList()
+				print("===============")
+				print("=== RPC out ===")
+				print("=== ack sent ===")
+				print("===============")				
+			elif data == b'PEERS':
+				print("call peers")
+				result = self.sendGetList()
+				print("===============")
+				print("=== RPC out ===")
+				print(result)
+				print("===============")
+			elif data == b'RECONNECT':  
+				print("call reconnect")
+
+	def prepareData(self):
+		next_id()
+		data = {
+			"type": "hello",
+			"txid": TXID,
+			"username": (USERNAME),
+			"ipv4": str(CHAT_IPV4),
+			"port": int(CHAT_PORT)
+		}
+		return data
+
+	def sendHello(self):
+		helloTime = time.time()
+					
+		firstHello = True
+		while True:
+			if (time.time() - helloTime) > 10 or firstHello:
+				# Create a UDP socket
+				sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+				server_address = (REG_IPV4, int(REG_PORT))      
+				firstHello = False
+				data = self.prepareData()
+				bencoded = bencode(data)
+				try:
+
+					# Send data
+					print('sending {!r}'.format(bencoded))
+					sent = sock.sendto(bencoded, server_address)
+					# Receive response
+					# print('waiting to receive')
+					# data, server = sock.recvfrom(4096)
+					# print('received {!r}'.format(data))
+
+				finally:
+					# print('closing socket')
+					sock.close()
+				helloTime = time.time() 
+
+	def sendMessage(self, data):
+		print("[INFO] Send message")
+		data2 = data.decode("utf-8")
+		data2 = data2.replace("'", '"')
+		data3 = json.loads(data2)
+		to = data3['to']
+		message = data3['message']
+		users = self.sendGetList()
+		for item in users:
+			if item == "peers":
+				for entry in users[item]:
+					user = (users['peers'][str(entry)])
+					if user['username'].decode("utf-8") == to:
+						("here2")
+						ip = (user['ipv4']).decode("utf-8")
+						port = (user['port']) 
 		
-			# # Wait for other client trying to connect with me
-			# sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			# sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			# # ip , port
-			# sock.bind((CHAT_IPV4, int(CHAT_PORT)))
-			# # how many connections are allowed to listen
-			# sock.listen(1)
-			# print("Cliest is listenning ...")					
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-			# while True:
-			# 	# c - connection which socket return
-			# 	# a - connectio naddress which socket return
-			# 	c, a = sock.accept()
-			# 	print("log1")
-			# 	# self.checkPeerHelloInterval()
-			# 	print(a)
-			# 	# on every connection make unique thread so we can server multiply users
-			# 	cThread = threading.Thread(target=self.handler, args=(c,a))
-			# 	# we are able to close problem even threads are ongoing
-			# 	cThread.daemon = True
-			# 	cThread.start()
-			# 	# self.connections.append(c)
-			# 	# add peer to peers list when someone connects
-			# 	# self.peers.append(a[1])
-			# 	# print who was connected
-			# 	print(str(a[0]) + ':' + str(a[1]), "connected")		
-			# 	# self.sendPeers()
+		server_address = (ip, int(port))
+		next_id()
+		data = {
+			"type":"message",
+			"txid": TXID,
+			"from": str(USERNAME),
+			"to": str(to),
+			"message":str(message)
+		}
+			   
+		while True:
+			bencoded = bencode(data)
+			try:
+				# Send data
+				print('sending {!r}'.format(bencoded))
+				sent = sock.sendto(bencoded, server_address)
 
-			#sending messages
-			while True:
-				data = sock.recv(1024)
-				if not data:
-					# print("[LOG] If 1")
-					break
-				#if first byte of the data then we receive list of peers
-				# if data[0:1] == b'\x11':
-				# 	# print("[LOG] If 2")
-				# 	# update th peers list minus first byte
-				# 	self.updatePeers(data[1:])
-				# 	# print("got peers")
-				else:
-					# print("[LOG] If 3")
-					print(str(data, 'utf-8'))
-					# print("======")
+				# Receive response
+				print('waiting to receive')
+				data, server = sock.recvfrom(4096)
+				print('received {!r}'.format(data))
 
-		# def handler(self, c, a):
-		# 	while True:
-		# 		# we receiving data by connection and maximum data is
-		# 		data = c.recv(1024)
-		# 		print(data)
+			finally:
+				# print('closing socket')
+				sock.close()
+				return
 
-		# def updatePeers(self, peerData):
-		# 	# go from the start of the list to the second last item
-		# 	p2p.peers = str(peerData, "utf-8").split(",")[:-1]
+	def sendACK(self):
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-		# def getPeersList(self, peerData):
-			# print(peerData)
+		server_address = (REG_IPV4, int(REG_PORT))
+		next_id()
+		data = {
+			"type":"ack", 
+			"txid": TXID
+		}
+			   
+		while True:
+			bencoded = bencode(data)
+			try:
+				# Send data
+				print('sending {!r}'.format(bencoded))
+				sent = sock.sendto(bencoded, server_address)
+			finally:
+				# print('closing socket')
+				sock.close()
+			return
 
-		# def sendHello(self):
-		# 	threading.Timer(10.0, self.sendHello).start()
-		# 	data = {
-		# 		"type": "hello",
-		# 		"txid": "10",
-		# 		"username": "ormi",
-		# 		"ipv4": "127.0.0.1",
-		# 		"port": "3010",
-		# 	}
-		# 	return data
 
-		def sendGetList(self):
-			# threading.Timer(10.0, self.sendHello).start()
-			data = {
-				"type": "getlist",
-				"txid": "10",
-			}
-			self.sendMsg(data)		
+	def sendGetList(self):
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-		def listener(self):
-			# Wait for other client trying to connect with me
-			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			# ip , port
-			sock.bind((CHAT_IPV4, int(CHAT_PORT)))
-			# how many connections are allowed to listen
-			sock.listen(1)
-			print("Cliest is listenning ...")					
+		server_address = (REG_IPV4, int(REG_PORT))
 
-			while True:
-				# c - connection which socket return
-				# a - connectio naddress which socket return
-				c, a = sock.accept()
-				print("log1")
-				# self.checkPeerHelloInterval()
-				print(a)
-				# on every connection make unique thread so we can server multiply users
-				cThread = threading.Thread(target=self.handler, args=(c,a))
-				# we are able to close problem even threads are ongoing
-				cThread.daemon = True
-				cThread.start()
-				# self.connections.append(c)
-				# add peer to peers list when someone connects
-				# self.peers.append(a[1])
-				# print who was connected
-				print(str(a[0]) + ':' + str(a[1]), "connected")		
-				# self.sendPeers()
+		data = {
+			"type":"getlist", 
+			"txid": TXID
+		}
+			   
+		while True:
+			bencoded = bencode(data)
+			try:
+				# Send data
+				print('sending {!r}'.format(bencoded))
+				sent = sock.sendto(bencoded, server_address)
 
-		def handler(self, c, a):
-			while True:
-				# we receiving data by connection and maximum data is
-				data = c.recv(1024)
-				print(data)
-				if not data:
-					c.close
-					break				
+				# Receive response
+				print('waiting to receive')
+				data, server = sock.recvfrom(4096)
+				decodedData = bdecode(data)
+				print('received {!r}'.format(decodedData))
+				self.sendACK()
+			finally:
+				# print('closing socket')
+				sock.close()
+			return decodedData
 
-# class p2p:
-# 	peers = ['127.0.0.1']
+	"""
+	Port for communication with RPC is generated as id with 9's until length is 5
+	"""
+	def findRPCPort(self):
+		if(len(str(ID)) == 1):
+			RPCid = ID + "999"
+		if(len(str(ID)) == 2):
+			RPCid = ID + "999"
+		if(len(str(ID)) == 3):
+			RPCid = ID + "99"
+		if(len(str(ID)) == 4):
+			RPCid = ID + "9"                                           
+		return RPCid
 
-while True:
-	parser = argparse.ArgumentParser(description="Hybrid p2p chat application PEER module")
-	parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of peer instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
-	parser.add_argument("--username", required=True, help="Unique username identifing this peer within the chat")
-	parser.add_argument("--chat-ipv4", required=True, help="IP address on which peer listening and receiving messages from other peers or nodes")
-	parser.add_argument("--chat-port", required=True, help="Port on which peer listening and receiving messages from other peers or nodes")
-	parser.add_argument("--reg-ipv4", required=True, help="IP address of egistration node, on which peer send messages HELLO and GETLIST")        
-	parser.add_argument("--reg-port", required=True, help="Port of egistration node, on which peer send messages HELLO and GETLIST")
-	args = parser.parse_args()
-	ID = str(args.id)
-	USERNAME = str(args.username)
-	CHAT_IPV4 = str(args.chat_ipv4)
-	CHAT_PORT = str(args.chat_port)
-	REG_IPV4 = str(args.reg_ipv4)
-	REG_PORT = str(args.reg_port)
+	def __init__(self):
+
+		# Start RPC daemon for listening to his messages
+		RPCThread = threading.Thread(target=self.RPCHandler, args=())
+		RPCThread.daemon = True
+		RPCThread.start()
+
+		helloThread = threading.Thread(target=self.sendHello, args=())
+		helloThread.daemon = True
+		helloThread.start()        
+
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		# Bind the socket to the port
+		server_address = (CHAT_IPV4, int(CHAT_PORT))
+		print('starting up on {} port {}'.format(*server_address))
+		sock.bind(server_address)
+
+		# Get some time variable out of while loop
+		helloTime = time.time()
+
+		while True:       
+			print('\nwaiting to receive message')
+			data, address = sock.recvfrom(4096)
+
+			print('received {} bytes from {}'.format(
+				len(data), address))
+			data = data.decode("utf-8") 
+			dataDecoded = bdecode(data)
+			message = self.parseMessage(dataDecoded)
+			print(message)
+			for line in message:
+				if line == 'type':
+					if message[line] == 'message':
+						print("[SERVER] I got message")
+						bencoded = bencode(b'ACK')
+						sent = sock.sendto(bencoded, address)
+
+	def parseMessage(self, data):
+		for line in data:
+			if line == 'ipv4':
+				data[line] = data[line].decode("utf-8")
+			if line == 'username':
+				data[line] = data[line].decode("utf-8")
+			if line == 'type':
+				data[line] = data[line].decode("utf-8")
+		return data
+
+def checkwhoIAm(action, data):
+	print("[INFO] checkwhoIam")
+	weGotUserName = False
+	weGotId = False
+	allLines = []
+	lineToRemove = ""
+	if os.path.exists("network.dat"):
+		with open("network.dat","r") as f:
+			for line in f:
+				allLines.append(line)
+				jsondata = json.loads(line)
+				for item in jsondata:
+					# if item == "username":
+					# 	if jsondata[item] == USERNAME:
+					# 		weGotUserName = True
+					if item == "id":
+						if jsondata[item] == int(ID):
+							lineToRemove = line
+							weGotId = True
+		f.close()
+		if(action == "add"):
+			with open("network.dat","a") as f:
+				if (weGotId == False):
+					f.write("\n")
+					f.write(json.dumps(data))
+			f.close()
+		elif(action == "remove"):
+			allLines.remove(lineToRemove)
+			print(allLines)
+			if len(allLines) != 0:
+				with open("network.dat","w") as f:
+					for line in allLines:
+						# line = line[:-2]
+						# if firstLine == True:
+						# 	firstLine = False
+						# else:
+						# 	f.write("\n")						
+						f.write(line)
+				f.close()	
+			else:
+				os.remove("network.dat")
+	else:
+		with open("network.dat","w") as f:
+			f.write(json.dumps(data))
+			f.close()	
+			
+
+def findRPCPort():
+	if(len(str(ID)) == 1):
+		RPCid = ID + "999"
+	if(len(str(ID)) == 2):
+		RPCid = ID + "999"
+	if(len(str(ID)) == 3):
+		RPCid = ID + "99"
+	if(len(str(ID)) == 4):
+		RPCid = ID + "9"                                           
+	return RPCid
+
+# while True:
+parser = argparse.ArgumentParser(description="Hybrid p2p chat application PEER module")
+parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of peer instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
+parser.add_argument("--username", required=True, help="Unique username identifing this peer within the chat")
+parser.add_argument("--chat-ipv4", required=True, help="IP address on which peer listening and receiving messages from other peers or nodes")
+parser.add_argument("--chat-port", required=True, help="Port on which peer listening and receiving messages from other peers or nodes")
+parser.add_argument("--reg-ipv4", required=True, help="IP address of egistration node, on which peer send messages HELLO and GETLIST")        
+parser.add_argument("--reg-port", required=True, help="Port of egistration node, on which peer send messages HELLO and GETLIST")
+args = parser.parse_args()
+ID = str(args.id)
+USERNAME = str(args.username)
+CHAT_IPV4 = str(args.chat_ipv4)
+CHAT_PORT = str(args.chat_port)
+REG_IPV4 = str(args.reg_ipv4)
+REG_PORT = str(args.reg_port)
+whoIAm = {
+	"type": "peer",	
+	"username": str(USERNAME),
+	"id": int(ID),
+	"ip": str(CHAT_IPV4),
+	"port": int(findRPCPort())
+}	
+checkwhoIAm("add", whoIAm)
+try:
+	print("Trying to connect ...")
+	# between 1 to 5 seconds
+	# time.sleep(randint(1,5))
+	# for peer in p2p.peers:
 	try:
-		print("Trying to connect ...")
-		# between 1 to 5 seconds
-		# time.sleep(randint(1,5))
-		# for peer in p2p.peers:
-		try:
-			client = Client(REG_IPV4)
-			# clientPeer = clientPeer(peer)
-		except KeyboardInterrupt:
-			sys.exit(0)
-		except:
-			pass				
+		client = Client()
+		# clientPeer = clientPeer(peer)
 	except KeyboardInterrupt:
-		sys.exit(0)    
-
-
-    # ./pds18-peer --id <identifikátor> --username <user> --chat-ipv4 <IP> --chat-port <port> --reg-ipv4 <IP> --reg-port <port>
-
-# python3 pds18-peer.py --id 10 --username user1 --chat-ipv4 127.0.0.10 --chat-port 3010 --reg-ipv4 127.0.0.1 --reg-port 3000
+		checkwhoIAm("remove", whoIAm)
+		sys.exit(0)
+	except:
+		pass				
+except KeyboardInterrupt:
+	checkwhoIAm("remove", whoIAm)
+	sys.exit(0)        

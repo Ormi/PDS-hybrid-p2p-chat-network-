@@ -7,7 +7,7 @@ from bencoder import bdecode
 import os
 import json
 import threading
-
+import copy
 TXID = 1
 TXID_LOCK = threading.Lock()
 def next_id():
@@ -19,12 +19,44 @@ def next_id():
 
 class Server:
 	db = []
+
+	def RPCHandler(self):
+		RPCid = findRPCPort()
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		# Bind the socket to the port
+		server_address = (REG_IPV4, int(RPCid))
+		print('Node listening for RPC {} port {}'.format(*server_address))
+		sock.bind(server_address)        
+		while True:
+			print("listening")
+			# we receiving data by connection and maximum data is
+			data, address = sock.recvfrom(4096)
+			print(data)
+			if data == b'DATABASE':
+				print("call database")
+				peersData = self.preparePeersData()
+				print("===============")
+				print("=== RPC out ===")
+				print(peersData)
+				print("===============")				
+			elif data == b'NEIGHBORS':
+				print("call getlist")
+			elif data == b'CONNECT':
+				print("call peers")
+			elif data == b'DISCONNECT':  
+				print("call reconnect")
+			elif data == b'SYNC':  
+				print("call reconnect")				
+
 	
 	def checkPeer(self, data):
 		print("[INFO] checkPeer")
 		timestamp = time.time()
 		dbCopy = self.db
-		data.update({"timestamp": timestamp})
+		dataCopy = copy.deepcopy(data)
+		dataCopy.update({"time": timestamp})
+		print("here")
 		# data.update({"portID": port})
 		peerID = 0
 		found = False
@@ -35,19 +67,18 @@ class Server:
 		# First entry to database
 		if not dbCopy:
 			found = True
-			dbCopy.append(data)
+			dbCopy.append(dataCopy)
 		# Check if entry is not already in database
 		# if so just rewrite timestamp
 		# if not add to db
 		else:
 			for peer in dbCopy:
-				for entry in peer:
+				for entry in peer.keys():
 					line = peer
 					if entry == 'username':
 						if str(line[entry]) == peerID:
 							dbCopy.remove(line)
 							dbCopy.append(data)
-						# self.db.append(data)
 							found = True
 							break
 		if found == False:
@@ -81,6 +112,12 @@ class Server:
 		return data
 
 	def __init__(self):
+		print("[INFO] init")
+		# Start RPC daemon for listening to his messages
+		RPCThread = threading.Thread(target=self.RPCHandler, args=())
+		RPCThread.daemon = True
+		RPCThread.start()		
+
 		# Create a UDP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -199,10 +236,6 @@ def checkwhoIAm(action, data):
 			else:
 				os.remove("network.dat")
 	else:
-		try:
-			os.remove("network.dat")
-		except:
-			pass
 		with open("network.dat","w") as f:
 			f.write(json.dumps(data))
 			f.close()	
@@ -219,31 +252,31 @@ def findRPCPort():
 		RPCid = ID + "9"                                           
 	return RPCid
 
-while True:
-	parser = argparse.ArgumentParser(description="Hybrid p2p chat application NODE module")
-	parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of node instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
-	parser.add_argument("--reg-ipv4", required=True, help="IP address on which node listening and receiving messages from other peers or nodes")
-	parser.add_argument("--reg-port", required=True, help="Port on which node listening and receiving messages from other peers or nodes")
-	args = parser.parse_args()
-	ID = str(args.id)
-	REG_IPV4 = str(args.reg_ipv4)
-	REG_PORT = str(args.reg_port)
-	whoIAm = {
-		"type": "node",	
-		"id": int(ID),
-		"ip": str(REG_IPV4),
-		"port": int(findRPCPort())
-	}	
-	checkwhoIAm("add", whoIAm)	
+# while True:
+parser = argparse.ArgumentParser(description="Hybrid p2p chat application NODE module")
+parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of node instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
+parser.add_argument("--reg-ipv4", required=True, help="IP address on which node listening and receiving messages from other peers or nodes")
+parser.add_argument("--reg-port", required=True, help="Port on which node listening and receiving messages from other peers or nodes")
+args = parser.parse_args()
+ID = str(args.id)
+REG_IPV4 = str(args.reg_ipv4)
+REG_PORT = str(args.reg_port)
+whoIAm = {
+	"type": "node",	
+	"id": int(ID),
+	"ip": str(REG_IPV4),
+	"port": int(findRPCPort())
+}	
+checkwhoIAm("add", whoIAm)	
+try:
+	print("Trying to connect ...")
 	try:
-		print("Trying to connect ...")
-		try:
-			server = Server()
-		except KeyboardInterrupt:
-			checkwhoIAm("remove", whoIAm)
-			sys.exit(0)
-		except Exception as e:
-			print(e)
+		server = Server()
 	except KeyboardInterrupt:
 		checkwhoIAm("remove", whoIAm)
-		sys.exit(0)                        
+		sys.exit(0)
+	except Exception as e:
+		print(e)
+except KeyboardInterrupt:
+	checkwhoIAm("remove", whoIAm)
+	sys.exit(0)                        

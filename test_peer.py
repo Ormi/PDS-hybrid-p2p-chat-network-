@@ -34,12 +34,35 @@ class Client:
 			print(data)
 			if data == b'MESSAGE':
 				print("call message")
-				# self.sendMessage("a")  
+				print(address)
+				try:
+					# Send data
+					data = b'ACK'
+					print('sending {!r}'.format(data))
+					sent = sock.sendto(data, address)
+					# Receive response
+					print('waiting to receive')
+					data, server = sock.recvfrom(4096)
+					print('received {!r}'.format(data))
+				finally:
+					print(data)
+					self.sendMessage(data)
+					# print('closing socket')
+					# self.sendMessage("a")  
 			elif data == b'GETLIST':
 				print("call getlist")
-				self.sendGetList()
+				result = self.sendGetList()
+				print("===============")
+				print("=== RPC out ===")
+				print("=== ack sent ===")
+				print("===============")				
 			elif data == b'PEERS':
 				print("call peers")
+				result = self.sendGetList()
+				print("===============")
+				print("=== RPC out ===")
+				print(result)
+				print("===============")
 			elif data == b'RECONNECT':  
 				print("call reconnect")
 
@@ -78,22 +101,38 @@ class Client:
 					# print('received {!r}'.format(data))
 
 				finally:
-					print('closing socket')
+					# print('closing socket')
 					sock.close()
 				helloTime = time.time() 
 
-	def sendMessage(self, toUser):
+	def sendMessage(self, data):
+		print("[INFO] Send message")
+		data2 = data.decode("utf-8")
+		data2 = data2.replace("'", '"')
+		data3 = json.loads(data2)
+		to = data3['to']
+		message = data3['message']
+		users = self.sendGetList()
+		for item in users:
+			if item == "peers":
+				for entry in users[item]:
+					user = (users['peers'][str(entry)])
+					if user['username'].decode("utf-8") == to:
+						("here2")
+						ip = (user['ipv4']).decode("utf-8")
+						port = (user['port']) 
+		
 		# Create a UDP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-		server_address = (REG_IPV4, int(REG_PORT))
+		server_address = (ip, int(port))
 		next_id()
 		data = {
 			"type":"message",
 			"txid": TXID,
 			"from": str(USERNAME),
-			"to":"<string>",
-			"message":"<string>"
+			"to": str(to),
+			"message":str(message)
 		}
 			   
 		while True:
@@ -109,8 +148,9 @@ class Client:
 				print('received {!r}'.format(data))
 
 			finally:
-				print('closing socket')
+				# print('closing socket')
 				sock.close()
+				return
 
 	def sendACK(self):
 		# Create a UDP socket
@@ -130,7 +170,7 @@ class Client:
 				print('sending {!r}'.format(bencoded))
 				sent = sock.sendto(bencoded, server_address)
 			finally:
-				print('closing socket')
+				# print('closing socket')
 				sock.close()
 			return
 
@@ -160,9 +200,9 @@ class Client:
 				print('received {!r}'.format(decodedData))
 				self.sendACK()
 			finally:
-				print('closing socket')
+				# print('closing socket')
 				sock.close()
-			return
+			return decodedData
 
 	"""
 	Port for communication with RPC is generated as id with 9's until length is 5
@@ -202,12 +242,29 @@ class Client:
 		while True:       
 			print('\nwaiting to receive message')
 			data, address = sock.recvfrom(4096)
+
 			print('received {} bytes from {}'.format(
 				len(data), address))
-			# if data == :
-			#     sent = sock.sendto(data, address)
-			#     print('sent {} bytes back to {}'.format(
-			#         sent, address))
+			data = data.decode("utf-8") 
+			dataDecoded = bdecode(data)
+			message = self.parseMessage(dataDecoded)
+			print(message)
+			for line in message:
+				if line == 'type':
+					if message[line] == 'message':
+						print("[SERVER] I got message")
+						bencoded = bencode(b'ACK')
+						sent = sock.sendto(bencoded, address)
+
+	def parseMessage(self, data):
+		for line in data:
+			if line == 'ipv4':
+				data[line] = data[line].decode("utf-8")
+			if line == 'username':
+				data[line] = data[line].decode("utf-8")
+			if line == 'type':
+				data[line] = data[line].decode("utf-8")
+		return data
 
 def checkwhoIAm(action, data):
 	print("[INFO] checkwhoIam")
@@ -266,6 +323,7 @@ def findRPCPort():
 	if(len(str(ID)) == 4):
 		RPCid = ID + "9"                                           
 	return RPCid
+
 # while True:
 parser = argparse.ArgumentParser(description="Hybrid p2p chat application PEER module")
 parser.add_argument("--id", type=int, required=True, help="--id us unique identifier of peer instance for cases, where it is needed to differ between peer in case of oe host (OS), on which they are running")
