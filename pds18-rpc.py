@@ -36,8 +36,6 @@ def defineStep(args):
 	if args.peer:
 		if args.command == "message":
 			print("peer message")
-			print(FROM)
-			print(args.to)
 			ip = False
 			port = False
 			peer = False
@@ -56,30 +54,23 @@ def defineStep(args):
 						username = jsondata[item]
 					if (str(username) == FROM):
 						if (port and ip and peer):		
-							print("send to")
-							print(ip, port)	
 							sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 							server_address = (str(ip), int(port))
 							message = b'MESSAGE'
 							try:
 								# send
-								print('sending {!r}'.format(message))
 								sent = sock.sendto(message, server_address)
 
 								# Receive response
-								print('waiting to receive')
 								data, server = sock.recvfrom(4096)
-								print('received {!r}'.format(data))	
 
 								# send2							
 								message = {
 									"to": args.to,
 									"message": args.message
 								}
-								print('sending {!r}'.format(message))
 								sent = sock.sendto(bytes(str(message), "utf-8"), server_address)
 							finally:
-								print('closing socket')
 								sock.close()								
 				ip = False
 				port = False
@@ -101,20 +92,18 @@ def defineStep(args):
 						if jsondata[item] == "peer":
 							peer = True
 					if (port and ip and peer):		
-						print("send to")
-						print(ip, port)	
 						sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 						server_address = (str(ip), int(port))
 						message = b'GETLIST'
 						try:
-							print('sending {!r}'.format(message))
+							# print('sending {!r}'.format(message))
 							sent = sock.sendto(message, server_address)
 						finally:
-							print('closing socket')
+							# print('closing socket')
 							sock.close()
-						ip = False
-						port = False	
-						peer = False							
+				ip = False
+				port = False	
+				peer = False							
 		elif args.command == "peers":
 			print("peer peers")        
 			ip = False
@@ -131,22 +120,61 @@ def defineStep(args):
 						if jsondata[item] == "peer":
 							peer = True
 					if (port and ip and peer):		
-						print("send to")
-						print(ip, port)	
 						sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 						server_address = (str(ip), int(port))
 						message = b'PEERS'
 						try:
-							print('sending {!r}'.format(message))
+							# print('sending {!r}'.format(message))
 							sent = sock.sendto(message, server_address)
 						finally:
-							print('closing socket')
+							# print('closing socket')
 							sock.close()
-						ip = False
-						port = False
-						peer = False			    
+				ip = False
+				port = False
+				peer = False			    
 		elif args.command == "reconnect":
 			print("peer reconnect")   
+			ip = False
+			port = False
+			peer = False
+			for line in network:
+				jsondata = json.loads(line)
+				for item in jsondata:
+					if item == "ip":
+						ip = jsondata[item]
+					if item == "port":
+						port = jsondata[item]
+					if item == "type":
+						if jsondata[item] == "peer":
+							peer = True
+					if (port and ip and peer):		
+						sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+						server_address = (str(ip), int(port))						
+						print(server_address)
+						message = b'RECONNECT'
+						try:
+							# send
+							# print('sending {!r}'.format(message))
+							sent = sock.sendto(message, server_address)
+
+							# Receive response
+							# print('waiting to receive')
+							data, server = sock.recvfrom(4096)
+							# print('received {!r}'.format(data))	
+
+							# send2							
+							message = {
+								"ip": args.reg_ipv4,
+								"port": args.reg_port
+							}
+							# print('sending {!r}'.format(message))
+							sent = sock.sendto(bytes(str(message), "utf-8"), server_address)
+						finally:
+							# print('closing socket')
+							sock.close()	
+				ip = False
+				port = False
+				peer = False									
 		else:
 			print("Unknow command for Peer")         
 	elif args.node:
@@ -166,28 +194,30 @@ def defineStep(args):
 						if jsondata[item] == "node":
 							node = True
 					if (port and ip and node):		
-						print("send to")
-						print(ip, port)	
 						sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 						server_address = (str(ip), int(port))
 						message = b'DATABASE'
 						try:
-							print('sending {!r}'.format(message))
+							# print('sending {!r}'.format(message))
 							sent = sock.sendto(message, server_address)
 						finally:
-							print('closing socket')
+							# print('closing socket')
 							sock.close()
-						ip = False
-						port = False
-						node = False			
+				ip = False
+				port = False
+				node = False			
 		elif args.command == "neighbors":
 			print("node neighbors")                          
+			print("[ERROR] NOT IMPLEMENTED")                          
 		elif args.command == "connect":
-			print("node connect")     
+			print("node connect")    
+			print("[ERROR] NOT IMPLEMENTED")                          
 		elif args.command == "disconnect":
-			print("node disconnect")     
+			print("node disconnect") 
+			print("[ERROR] NOT IMPLEMENTED")                          
 		elif args.command == "sync":
 			print("node sync")                                         
+			print("[ERROR] NOT IMPLEMENTED")                          
 		else:
 			print("Unknow command for Node")         
 	else:
@@ -209,18 +239,9 @@ parser.add_argument("--message", help="Command for instance of server")
 
 parser.add_argument("--reg-ipv4", help="Command for instance of server")
 parser.add_argument("--reg-port", help="Command for instance of server")
-# command_group.add_argument("getlist", help="Command for instance of server")
-# command_group.add_argument("peers", help="Command for instance of server")
-# command_group.add_argument("reconnect", help="Command for instance of server")
-# command_group.add_argument("database", help="Command for instance of server")
-# command_group.add_argument("neighbors", help="Command for instance of server")
-# command_group.add_argument("connect", help="Command for instance of server")
-# command_group.add_argument("discover", help="Command for instance of server")
-# command_group.add_argument("sync", help="Command for instance of server")
 
 FROM = ""
 args = parser.parse_args()
-print(args)
 for arg in vars(args):
 	try:
 		if arg == "from":

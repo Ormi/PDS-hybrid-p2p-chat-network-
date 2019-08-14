@@ -35,54 +35,71 @@ def next_id():
 		TXID += 1
 	return result
 
+REG_IPV4 = ""
+REG_PORT = 0
+
 class Client:
-		
 	def RPCHandler(self):
 		RPCid = self.findRPCPort()
 		# Create a UDP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		# Bind the socket to the port
 		server_address = (CHAT_IPV4, int(RPCid))
-		print('Client listening for RPC {} port {}'.format(*server_address))
+		print('Peer listening for RPC {} port {}'.format(*server_address))
 		sock.bind(server_address)        
 		while True:
-			print("listening")
 			# we receiving data by connection and maximum data is
 			data, address = sock.recvfrom(4096)
 			print(data)
 			if data == b'MESSAGE':
-				print("call message")
-				print(address)
+				print("===============")
+				print("=== RPC Message ===")
+				print("=== ack sent ===")
+				print("===============")		
 				try:
 					# Send data
 					data = b'ACK'
-					print('sending {!r}'.format(data))
+					# print('sending {!r}'.format(data))
 					sent = sock.sendto(data, address)
 					# Receive response
-					print('waiting to receive')
+					# print('waiting to receive')
 					data, server = sock.recvfrom(4096)
-					print('received {!r}'.format(data))
+					# print('received {!r}'.format(data))
 				finally:
 					print(data)
 					self.sendMessage(data)
 					# print('closing socket')
 					# self.sendMessage("a")  
 			elif data == b'GETLIST':
-				print("call getlist")
-				result = self.sendGetList()
 				print("===============")
-				print("=== RPC out ===")
+				print("=== RPC Getlist ===")
 				print("=== ack sent ===")
 				print("===============")				
+				result = self.sendGetList()
 			elif data == b'PEERS':
-				print("call peers")
 				result = self.sendGetList()
 				print("===============")
-				print("=== RPC out ===")
+				print("=== RPC Peers ===")
 				print(result)
 				print("===============")
 			elif data == b'RECONNECT':  
-				print("call reconnect")
+				print("===============")
+				print("=== RPC RECONNECT ===")
+				print("===============")		
+				try:
+					# Send data
+					data = b'ACK'
+					# print('sending {!r}'.format(data))
+					sent = sock.sendto(data, address)
+					# Receive response
+					# print('waiting to receive')
+					data, server = sock.recvfrom(4096)
+					# print('received {!r}'.format(data))
+				finally:
+					# print(data)
+					self.reconnect(data)
+					# print('closing socket')
+					# self.sendMessage("a")  
 
 	def prepareData(self):
 		next_id()
@@ -95,7 +112,18 @@ class Client:
 		}
 		return data
 
+	def reconnect(self, data):
+		global REG_IPV4, REG_PORT
+		print("[INFO] Reconnect")
+		data2 = data.decode("utf-8")
+		data2 = data2.replace("'", '"')
+		data3 = json.loads(data2)
+		REG_IPV4 = data3["ip"]
+		REG_PORT = data3["port"]
+
+
 	def sendHello(self):
+		# global REG_IPV4, REG_PORT
 		helloTime = time.time()
 					
 		firstHello = True
@@ -104,14 +132,18 @@ class Client:
 				# Create a UDP socket
 				sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+				# print(REG_IPV4, REG_PORT)
+
 				server_address = (REG_IPV4, int(REG_PORT))      
 				firstHello = False
 				data = self.prepareData()
 				bencoded = bencode(data)
 				try:
-
 					# Send data
-					print('sending {!r}'.format(bencoded))
+					# print('sending {!r}'.format(bencoded))
+					# print("to")
+					# print(server_address)
+					# print(bencoded)
 					sent = sock.sendto(bencoded, server_address)
 					# Receive response
 					# print('waiting to receive')
@@ -152,16 +184,16 @@ class Client:
 			"to": str(to),
 			"message":str(message)
 		}
-			   
+				 
 		while True:
 			bencoded = bencode(data)
 			try:
 				# Send data
-				print('sending {!r}'.format(bencoded))
+				# print('sending {!r}'.format(bencoded))
 				sent = sock.sendto(bencoded, server_address)
 
 				# Receive response
-				print('waiting to receive')
+				# print('waiting to receive')
 				data, server = sock.recvfrom(4096)
 				print('received {!r}'.format(data))
 
@@ -180,12 +212,12 @@ class Client:
 			"type":"ack", 
 			"txid": TXID
 		}
-			   
+				 
 		while True:
 			bencoded = bencode(data)
 			try:
 				# Send data
-				print('sending {!r}'.format(bencoded))
+				# print('sending {!r}'.format(bencoded))
 				sent = sock.sendto(bencoded, server_address)
 			finally:
 				# print('closing socket')
@@ -203,19 +235,19 @@ class Client:
 			"type":"getlist", 
 			"txid": TXID
 		}
-			   
+				 
 		while True:
 			bencoded = bencode(data)
 			try:
 				# Send data
-				print('sending {!r}'.format(bencoded))
+				# print('sending {!r}'.format(bencoded))
 				sent = sock.sendto(bencoded, server_address)
 
 				# Receive response
-				print('waiting to receive')
+				# print('waiting to receive')
 				data, server = sock.recvfrom(4096)
 				decodedData = bdecode(data)
-				print('received {!r}'.format(decodedData))
+				# print('received {!r}'.format(decodedData))
 				self.sendACK()
 			finally:
 				# print('closing socket')
@@ -236,8 +268,8 @@ class Client:
 			RPCid = ID + "9"                                           
 		return RPCid
 
-	def __init__(self):
-
+	def __init__(self, sock):
+		print("Peer started ...")
 		# Start RPC daemon for listening to his messages
 		RPCThread = threading.Thread(target=self.RPCHandler, args=())
 		RPCThread.daemon = True
@@ -247,30 +279,23 @@ class Client:
 		helloThread.daemon = True
 		helloThread.start()        
 
-		# Create a UDP socket
-		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		# Bind the socket to the port
-		server_address = (CHAT_IPV4, int(CHAT_PORT))
-		print('starting up on {} port {}'.format(*server_address))
-		sock.bind(server_address)
-
 		# Get some time variable out of while loop
 		helloTime = time.time()
 
 		while True:       
-			print('\nwaiting to receive message')
+			# print('\nwaiting to receive message')
 			data, address = sock.recvfrom(4096)
 
-			print('received {} bytes from {}'.format(
-				len(data), address))
+			# print('received {} bytes from {}'.format(
+				# len(data), address))
 			data = data.decode("utf-8") 
 			dataDecoded = bdecode(data)
 			message = self.parseMessage(dataDecoded)
-			print(message)
 			for line in message:
 				if line == 'type':
 					if message[line] == 'message':
-						print("[SERVER] I got message")
+						print("[SERVER] I got message from someone")
+						print(message)
 						bencoded = bencode(b'ACK')
 						sent = sock.sendto(bencoded, address)
 
@@ -312,7 +337,6 @@ def checkwhoIAm(action, data):
 			f.close()
 		elif(action == "remove"):
 			allLines.remove(lineToRemove)
-			print(allLines)
 			if len(allLines) != 0:
 				with open("network.dat","w") as f:
 					for line in allLines:
@@ -371,7 +395,14 @@ try:
 	# time.sleep(randint(1,5))
 	# for peer in p2p.peers:
 	try:
-		client = Client()
+
+		# Create a UDP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		# Bind the socket to the port
+		server_address = (str(CHAT_IPV4), int(CHAT_PORT))
+		print('Starting up Message socket on {} port {}'.format(*server_address))
+		sock.bind(server_address)		
+		client = Client(sock)
 		# clientPeer = clientPeer(peer)
 	except KeyboardInterrupt:
 		checkwhoIAm("remove", whoIAm)

@@ -48,15 +48,13 @@ class Server:
 		print('Node listening for RPC {} port {}'.format(*server_address))
 		sock.bind(server_address)        
 		while True:
-			print("listening")
 			# we receiving data by connection and maximum data is
 			data, address = sock.recvfrom(4096)
 			print(data)
 			if data == b'DATABASE':
-				print("call database")
 				peersData = self.preparePeersData()
 				print("===============")
-				print("=== RPC out ===")
+				print("=== RPC DATABASE ===")
 				print(peersData)
 				print("===============")				
 			elif data == b'NEIGHBORS':
@@ -75,7 +73,6 @@ class Server:
 		dbCopy = self.db
 		dataCopy = copy.deepcopy(data)
 		dataCopy.update({"time": timestamp})
-		print("here")
 		# data.update({"portID": port})
 		peerID = 0
 		found = False
@@ -106,7 +103,6 @@ class Server:
 		return 
 
 	def checkPeerHelloInterval(self):
-		print("checkPeerHelloInterval")
 		dbCopy = self.db
 		actualTimestamp = time.time()
 		for peer in dbCopy:
@@ -132,6 +128,7 @@ class Server:
 
 	def __init__(self):
 		print("[INFO] init")
+		print("Server is starting ...")
 		# Start RPC daemon for listening to his messages
 		RPCThread = threading.Thread(target=self.RPCHandler, args=())
 		RPCThread.daemon = True
@@ -142,37 +139,29 @@ class Server:
 
 		# Bind the socket to the port
 		server_address = (REG_IPV4, int(REG_PORT))
-		print('starting up on {} port {}'.format(*server_address))
+		print('Serverstarting up socket on {} port {}'.format(*server_address))
 		sock.bind(server_address)
 
 		while True:
-			print('\nwaiting to receive message')
+			# print('\nwaiting to receive message')
 			data, address = sock.recvfrom(4096)
 
-			print('received {} bytes from {}'.format(
-				len(data), address))
+			# print('received {} bytes from {}'.format(
+				# len(data), address))
 			data = data.decode("utf-8") 
 			dataDecoded = bdecode(data)
 			message = self.parseMessage(dataDecoded)
-			print(message)
+			# print(message)
 			for line in message:
 				self.checkPeerHelloInterval()
 				if line == 'type':
 					if message[line] == 'getlist':
 						print("[SERVER] I got GETLIST")
-						print(time.time())
 						data = self.preparePeersData()
-						print(data)
-						print("1")
-						print(type(data))
 						bencoded = bencode(data)
-						print("2")
-						print(bencoded)
 						sent = sock.sendto(bencoded, address)
 					elif message[line] == 'hello':
-						print(self.db)
 						print("[SERVER] I got HELO")
-						print(time.time())
 						self.checkPeer(message)
 					elif message[line] == 'ack':
 						print("ACK")
@@ -241,7 +230,6 @@ def checkwhoIAm(action, data):
 			f.close()
 		elif(action == "remove"):
 			allLines.remove(lineToRemove)
-			print(allLines)
 			if len(allLines) != 0:
 				with open("network.dat","w") as f:
 					for line in allLines:
