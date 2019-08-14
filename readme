@@ -1,3 +1,7 @@
+Hodnotenie 14/25
+Osobne veselym
+Peer fungoval, node z cast, bez full mesh siete
+
 Spustenie node
     python3 pds18-node.py --id <identifikátor> --reg-ipv4 <IP> --reg-port <port>
 
